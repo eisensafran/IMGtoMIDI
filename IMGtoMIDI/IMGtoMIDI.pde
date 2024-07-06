@@ -2,7 +2,7 @@ import controlP5.*;
 import themidibus.*;
 
 ControlP5 cp5;
-DropdownList dropdown;
+ScrollableList dropdown;
 MidiBus myBus;
 Slider delayValue;
 int delayV = 0;
@@ -13,6 +13,8 @@ String[] midiDevices; // Array to store the MIDI devices
 Button startButton;
 boolean start = false; // Boolean flag to indicate start
 
+String selectedMIDIDevice;
+
 Button stopButton;
 
 void setup() {
@@ -21,6 +23,9 @@ void setup() {
   selectInput("Select an image file:", "fileSelected");
   
   MidiBus.list();
+  
+  
+  
   String[] devices = MidiBus.availableOutputs();
   
   // Initialize the midiDevices array with the same length
@@ -37,19 +42,27 @@ void setup() {
   cp5 = new ControlP5(this);
 
 // Create a dropdown list
-  dropdown = cp5.addDropdownList("myDropdown")
-                .setPosition(550, 300)
-                .setSize(200, 200)
-                .setItemHeight(40)
-                .setBarHeight(20)
-                .addItems(midiDevices);
-  
+  dropdown = cp5.addScrollableList("choose MIDI device")
+     .setPosition(550, 250)
+     .setSize(200, 200)
+     .setBarHeight(20)
+     .setItemHeight(20)
+     .addItems(midiDevices)
+     .setType(ScrollableList.DROPDOWN)
+     .setOpen(true)                      //false for closed
+     ;
   // Set a callback function to handle the dropdown list events
   dropdown.addCallback(new CallbackListener() {
     public void controlEvent(CallbackEvent theEvent) {
+              
       if (theEvent.getAction() == ControlP5.ACTION_BROADCAST) {
         int index = (int) theEvent.getController().getValue();
         println(dropdown.getItem(index).get("name"));
+        selectedMIDIDevice = dropdown.getItem(index).get("name").toString();
+        println(selectedMIDIDevice);
+        myBus = new MidiBus(this, selectedMIDIDevice, selectedMIDIDevice);
+        
+
       }
     }
   });
@@ -82,13 +95,13 @@ void setup() {
   
     // Create a slider
   delayValue = cp5.addSlider("delayValue")
-                .setPosition(50, 150)
+                .setPosition(550, 150)
                 .setSize(300, 50)
                 .setRange(1, 1000)
                 .setValue(1)
                 .setNumberOfTickMarks(100)
                 .setSliderMode(Slider.FLEXIBLE)
-                .setLabel("Value: 1")
+                .setLabel("Delay between notes")
                 .onChange(new CallbackListener() {
                   public void controlEvent(CallbackEvent theEvent) {
                     float value = theEvent.getController().getValue();
@@ -131,12 +144,37 @@ void fileSelected(File selection) {
 void colorreader() {
 
   
-    // IMAGE COLOR READS
+    // Read color from center of image
   
-  color c2 = get(25, img.width/2);
-  println("red"+red(c2));
-    println(blue(c2));
-      println(green(c2));
+  color centerColor = get(img.width/2, img.height/2);
+  println("red "+red(centerColor));
+
+      
+      // Read color from 9 points (matrix approach)
+      
+      int[] matrixColor = new int[9];
+      matrixColor[0] = int(red(get(img.width/4, img.height/4)));
+      matrixColor[1] = int(red(get(img.width/2, img.height/4)));
+      matrixColor[2] = int(red(get(3*img.width/4, img.height/4)));
+      matrixColor[3] = int(red(get(img.width/4, img.height/2)));
+      matrixColor[4] = int(red(get(img.width/2, img.height/2)));
+      matrixColor[5] = int(red(get(3*img.width/4, img.height/2)));
+      matrixColor[6] = int(red(get(img.width/4, 3*img.height/4)));
+      matrixColor[7] = int(red(get(img.width/2, 3*img.height/4)));
+      matrixColor[8] = int(red(get(3*img.width/4, 3*img.height/4)));
+     
+     println(matrixColor);
+      
+     
+     for(int i=0; i<matrixColor.length; i++){
+         
+       
+       
+       }
+
+      
+      
+      
   
      delay(delayV);
     println("delay: "+delayV);
@@ -145,3 +183,9 @@ void colorreader() {
 
 
   
+class colortoMIDI {
+  
+  int colorValue;
+  float normalizedColorValue = map(colorValue, 0, 255, 0, 127);
+
+}
