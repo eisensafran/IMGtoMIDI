@@ -5,7 +5,7 @@ ControlP5 cp5;
 ScrollableList dropdown;
 MidiBus myBus;
 Slider delayValue;
-int delayV = 0;
+int delayV = 200;
 
 PImage img;
 String[] midiDevices; // Array to store the MIDI devices
@@ -13,7 +13,9 @@ String[] midiDevices; // Array to store the MIDI devices
 Button startButton;
 boolean start = false; // Boolean flag to indicate start
 
-String selectedMIDIDevice;
+  boolean sending = true;
+
+int startMillis;
 
 Button stopButton;
 
@@ -22,8 +24,11 @@ void setup() {
   background(150);
   selectInput("Select an image file:", "fileSelected");
   
+
+  
   MidiBus.list();
   
+  startMillis = millis();
   
   
   String[] devices = MidiBus.availableOutputs();
@@ -58,9 +63,10 @@ void setup() {
       if (theEvent.getAction() == ControlP5.ACTION_BROADCAST) {
         int index = (int) theEvent.getController().getValue();
         println(dropdown.getItem(index).get("name"));
-        selectedMIDIDevice = dropdown.getItem(index).get("name").toString();
+        String selectedMIDIDevice = dropdown.getItem(index).get("name").toString();
+        myBus = new MidiBus(this, 1, selectedMIDIDevice); 
         println(selectedMIDIDevice);
-        myBus = new MidiBus(this, selectedMIDIDevice, selectedMIDIDevice);
+        
         
 
       }
@@ -108,6 +114,9 @@ void setup() {
                     delayV = (int)value;
                   }
                 });
+                
+               
+                
 }
   
   
@@ -129,6 +138,9 @@ void draw() {
   
     if (start) {
     colorreader();
+    
+    
+
 
   }
   
@@ -147,7 +159,7 @@ void colorreader() {
     // Read color from center of image
   
   color centerColor = get(img.width/2, img.height/2);
-  println("red "+red(centerColor));
+  //println("red "+red(centerColor));
 
       
       // Read color from 9 points (matrix approach)
@@ -168,16 +180,33 @@ void colorreader() {
      
      for(int i=0; i<matrixColor.length; i++){
          
-       
+  int channel = 1;
+  int pitch = int(map(matrixColor[i], 0, 255, 50, 100));
+  int velocity = 127;
+  
+
+
+  if (sending) {
+  myBus.sendNoteOn(channel, pitch, velocity); // Send a Midi noteOn
+  println("sending MIDI note");
+  sending = false;
+  }
+  if (millis() - startMillis >= delayV) {
+ 
+  myBus.sendNoteOff(channel, pitch, velocity); // Send a Midi nodeOff
+  sending = true;
+  }
+
+  
        
        }
 
-      
+
       
       
   
-     delay(delayV);
-    println("delay: "+delayV);
+ 
+
  
 }
 
@@ -186,6 +215,11 @@ void colorreader() {
 class colortoMIDI {
   
   int colorValue;
-  float normalizedColorValue = map(colorValue, 0, 255, 0, 127);
+  float normalizedColorValue = map(colorValue, 0, 255, 50, 100);
 
+}
+
+void delay(int time) {
+  int current = millis();
+  while (millis () < current+time) Thread.yield();
 }
