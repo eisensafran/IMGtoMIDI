@@ -1,6 +1,6 @@
 # IMGtoMIDI
 
-Aim: Converting a static image to MIDI signals using blob detection and other methods. Autodetecting suitable MIDI interfaces/devices on the target system and providing a simple GUI.
+Objective: Converting a static image to MIDI signals using blob detection and other methods. Autodetecting suitable MIDI interfaces/devices on the target system and providing a simple GUI.
 
 ## current status
 Prototype is working but a lot of features are highly work in progress. 
