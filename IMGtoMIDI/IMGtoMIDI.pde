@@ -13,7 +13,7 @@ String[] midiDevices; // Array to store the MIDI devices
 Button startButton;
 boolean start = false; // Boolean flag to indicate start
 
-  boolean sending = true;
+boolean sending = false; // Boolean flag to indicate sending a MIDI note
 
 int startMillis;
 
@@ -23,6 +23,8 @@ void setup() {
   size(1000, 800);
   background(150);
   selectInput("Select an image file:", "fileSelected");
+
+
   
 
   
@@ -95,6 +97,15 @@ void setup() {
                   public void controlEvent(CallbackEvent theEvent) {
                     start = false; // Set the flag to true when button is pressed
                     println("stopped");
+                    
+                    // hacky "MIDI panic" command (sends a noteOff to all pitches in channel 1
+                    for (int j=1; j<127; j++) 
+                    {
+                    myBus.sendNoteOff(1, j, 127); // Send a Midi nodeOff
+                    println("sending MIDI panicOff to: "+j);
+                    }
+                    
+                    
                   }
                 });
   
@@ -135,10 +146,12 @@ void draw() {
 
   }
   
+  frameRate(10);
+  
   
     if (start) {
-    colorreader();
-    
+    //thread("colorreader");
+    sendMIDI(70);
     
 
 
@@ -153,73 +166,48 @@ void fileSelected(File selection) {
     img = loadImage(selection.getAbsolutePath());
   }
 
-void colorreader() {
+void sendMIDI(int pitch) {
 
-  
-    // Read color from center of image
-  
-  color centerColor = get(img.width/2, img.height/2);
-  //println("red "+red(centerColor));
 
-      
-      // Read color from 9 points (matrix approach)
-      
-      int[] matrixColor = new int[9];
-      matrixColor[0] = int(red(get(img.width/4, img.height/4)));
-      matrixColor[1] = int(red(get(img.width/2, img.height/4)));
-      matrixColor[2] = int(red(get(3*img.width/4, img.height/4)));
-      matrixColor[3] = int(red(get(img.width/4, img.height/2)));
-      matrixColor[4] = int(red(get(img.width/2, img.height/2)));
-      matrixColor[5] = int(red(get(3*img.width/4, img.height/2)));
-      matrixColor[6] = int(red(get(img.width/4, 3*img.height/4)));
-      matrixColor[7] = int(red(get(img.width/2, 3*img.height/4)));
-      matrixColor[8] = int(red(get(3*img.width/4, 3*img.height/4)));
-     
-     println(matrixColor);
-      
-     
-     for(int i=0; i<matrixColor.length; i++){
+
          
   int channel = 1;
-  int pitch = int(map(matrixColor[i], 0, 255, 50, 100));
+  // int pitch = int(map(matrixColor[i], 0, 255, 20, 120));
   int velocity = 127;
   
 
 
-  if (sending) {
+    
+  if (sending == false) {
+    
   myBus.sendNoteOn(channel, pitch, velocity); // Send a Midi noteOn
-  println("sending MIDI note");
-  sending = false;
-  }
-  if (millis() - startMillis >= delayV) {
- 
-  myBus.sendNoteOff(channel, pitch, velocity); // Send a Midi nodeOff
+  println("sending MIDI noteON:  "+pitch);
+  println();
+
+
   sending = true;
+
+  
+  } else {
+    
+  myBus.sendNoteOff(channel, pitch, velocity); // Send a Midi nodeOff
+  println("sending MIDI noteOff: "+pitch);
+  println();
+  
+    if (millis() - startMillis >= 2000) {
+      println("in if");
+  sending = false;
+  startMillis = millis();
   }
 
-  
-       
-       }
-
-
+  }
       
-      
+     }  
   
  
 
  
-}
+
 
 
   
-class colortoMIDI {
-  
-  int colorValue;
-  float normalizedColorValue = map(colorValue, 0, 255, 50, 100);
-
-}
-
-void delay(int time) {
-  int current = millis();
-  while (millis () < current+time) Thread.yield();
-}
