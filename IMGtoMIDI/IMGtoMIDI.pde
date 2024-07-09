@@ -24,12 +24,18 @@ int startMillis;
 int amountOfBlobs;
 int currentPitch;
 
+boolean spiral = false;
+boolean blobby = false;
+
 
 
 void setup() {
   size(1000, 500);
   background(150);
   selectInput("Select an image file:", "fileSelected");
+  
+  // limit framerate
+  frameRate(30);
 
 
   
@@ -86,9 +92,7 @@ void setup() {
                 .onClick(new CallbackListener() {
                   public void controlEvent(CallbackEvent theEvent) {
                     
-                    // trigger all calculations
-                    spiral();
-                    blobby();
+
                     
                     start = true; // Set the flag to true when button is pressed
                     
@@ -117,19 +121,21 @@ void setup() {
                   }
                 });
                 
-                textSize(20);
+                textSize(18);
+                
+                
+                  // Hint for setup order              
+  text("Select algorithm", 550, 410); 
+                
                 
        // create radio button
        radioButton = cp5.addRadioButton("radioButton")
-                   .setPosition(50, 50)
+                   .setPosition(550, 420)
                    .setSize(20, 20)
-                   .setColorForeground(color(120))
-                   .setColorActive(color(255))
-                   .setColorLabel(color(0))
                    .setItemsPerRow(1)
                    .setSpacingColumn(50)
-                   .addItem("Spiral", 0)
-                   .addItem("Blobby", 1);
+                   .addItem("Record Player", 0)
+                   .addItem("Blob Detection", 1);
      
                 
                 
@@ -169,16 +175,20 @@ void draw() {
     // color centerColor = int(red(get(img.width/2, img.height/2)));    
     // sendMIDI(centerColor);
     
+    if (blobby) {
     //int rand = (int)random(blobby().length); // alternative to modulo
-    //int mod = frameCount % blobby().length;
+    int mod = frameCount % blobby().length;
     //println("amount of detected blobs: "+blobby().length);
     //println("modulo: "+mod);
-    //sendMIDI(blobby()[mod]);
+    sendMIDI(blobby()[mod]);
+    }
     
+    if (spiral) {
     int mod2 = frameCount % spiralColors.length;
-    sendMIDI(int(map(red(spiralColors[mod2]), 0, 255, 30, 100)));
+    sendMIDI(int(map(red(spiralColors[mod2]), 0, 255, 30, 80)));
+    }
 
-    println("Frame: "+frameCount);
+    // println("Frame: "+frameCount);
     
     }
 
@@ -210,15 +220,19 @@ void sendMIDI(int pitch) {
   
   } else {
     
+    // I do not really understand the next if-function
+    // I wrote this piece of code too late at night
+    // It can be changed to pitch == currentPitch -> less sent notes (maybe avoids duplicates?)
+    // and pitch != currentPitch -> more sent notes (including duplicates)
   if (pitch != currentPitch) {
     myBus.sendNoteOff(channel, currentPitch, velocity); // Send a Midi nodeOff
-    println("sending MIDI noteOff: "+currentPitch);
+    //println("sending MIDI noteOff: "+currentPitch);
     println();
 
   
     // ensure that next noteOn will only be sent after delayV  
     if (millis() - startMillis >= delayV) {
-      println("in if");
+      println("---");
       sending = false;
       startMillis = millis();
       }
@@ -307,7 +321,11 @@ void controlEvent(ControlEvent theEvent) {
     int selected = int(theEvent.getValue());
     if (selected == 0) {
       spiral();
+      spiral = true;
+      blobby = false;
     } else if (selected == 1) {
+      blobby = true;
+      spiral = false;
       blobby();
     }
   }
