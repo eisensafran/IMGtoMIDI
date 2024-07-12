@@ -190,11 +190,11 @@ void draw() {
     
     //todo: blobby needs to be rewritten!
     if (blobby) {
-    //int rand = (int)random(blobby().length); // alternative to modulo
-    int mod = frameCount % blobby().length;
+    // int mod = (int)random(allBlobs.length); // alternative to modulo
+    int mod = frameCount % allBlobs.length;
     //println("amount of detected blobs: "+blobby().length);
     //println("modulo: "+mod);
-    sendMIDI(blobby()[mod]);
+    sendMIDI(allBlobs[mod]);
     }
     
     if (spiral) {
@@ -273,7 +273,7 @@ int[] blobby() {
   
   theBlobDetection = new BlobDetection(img.width, img.height);
   theBlobDetection.setPosDiscrimination(false);
-  theBlobDetection.setThreshold(0.38f);
+  theBlobDetection.setThreshold(0.8f);
   theBlobDetection.computeBlobs(img.pixels);
   // println(theBlobDetection.getBlobNb()); // amount of blobs
   // println(theBlobDetection.getBlob(1).getEdgeVertexB(1));
@@ -289,10 +289,11 @@ int[] blobby() {
   for (int m = 0; m < allBlobs.length; m++) {
    
     allBlobs[m] = int(map(theBlobDetection.getBlob(m).x, 0, 1, 30, 80));
+   
     
   }
 
-  //println(allBlobs);
+  println(allBlobs);
   return allBlobs;
 }
 
