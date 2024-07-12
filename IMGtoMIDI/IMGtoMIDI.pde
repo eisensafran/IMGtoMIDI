@@ -10,6 +10,7 @@ Slider delayValue;
 Button startButton;
 Button stopButton;
 RadioButton radioButton;
+CheckBox checkbox;
 
 PImage img;
 String[] midiDevices; // Array to store the MIDI devices
@@ -23,9 +24,12 @@ int delayV = 200;
 int startMillis;
 int amountOfBlobs;
 int currentPitch;
+int isSending = 0;
 
 boolean spiral = false;
 boolean blobby = false;
+
+boolean sendChords = false; // Boolean flag if some basic chords are sent instead of single notes
 
 
 
@@ -110,12 +114,7 @@ void setup() {
                     start = false; // Set the flag to true when button is pressed
                     println("stopped");
                     
-                    // hacky "MIDI panic" command (sends a noteOff to all pitches in channel 1
-                    for (int j=1; j<127; j++) 
-                    {
-                    myBus.sendNoteOff(1, j, 127); // Send a Midi nodeOff
-                    println("sending MIDI panicOff to: "+j);
-                    }
+                    MIDIPanic();
                     
                     
                   }
@@ -157,6 +156,19 @@ void setup() {
                     delayV = (int)value;
                   }
                 });
+     
+     stroke(255);
+     line(700, 395, 700, 465);
+                
+                
+      // Hint for setup order              
+  text("Send single notes or chords?", 720, 410);             
+                
+  // Create a checkbox if chords should be generated
+    checkbox = cp5.addCheckBox("checkbox")
+                .setPosition(720, 420)
+                .setSize(20, 20)
+                .addItem("Send chords", 0);
               
 }
   
@@ -175,6 +187,8 @@ void draw() {
     // color centerColor = int(red(get(img.width/2, img.height/2)));    
     // sendMIDI(centerColor);
     
+    
+    //todo: blobby needs to be rewritten!
     if (blobby) {
     //int rand = (int)random(blobby().length); // alternative to modulo
     int mod = frameCount % blobby().length;
@@ -212,6 +226,10 @@ void sendMIDI(int pitch) {
   if (sending == false) {
     
   myBus.sendNoteOn(channel, pitch, velocity); // Send a Midi noteOn
+  if (sendChords) {
+    myBus.sendNoteOn(channel, pitch+4, velocity); // Send a Midi noteOn
+    myBus.sendNoteOn(channel, pitch+7, velocity); // Send a Midi noteOn
+  }
   println("sending MIDI noteON:  "+pitch);
   println();
 
@@ -225,16 +243,25 @@ void sendMIDI(int pitch) {
     // It can be changed to pitch == currentPitch -> less sent notes (maybe avoids duplicates?)
     // and pitch != currentPitch -> more sent notes (including duplicates)
   if (pitch != currentPitch) {
-    myBus.sendNoteOff(channel, currentPitch, velocity); // Send a Midi nodeOff
-    //println("sending MIDI noteOff: "+currentPitch);
-    println();
-
+    
+    // ensure that the MIDI noteOff command is sent only once
+    if (isSending < 1) {
+      myBus.sendNoteOff(channel, currentPitch, velocity); // Send a Midi noteOff
+      if (sendChords) {
+        myBus.sendNoteOff(channel, pitch+4, velocity); // Send a Midi noteOff
+        myBus.sendNoteOff(channel, pitch+7, velocity); // Send a Midi noteOff
+      }
+      isSending ++;
+      println("sending MIDI noteOff: "+currentPitch);
+      println();
+      }
   
     // ensure that next noteOn will only be sent after delayV  
     if (millis() - startMillis >= delayV) {
       println("---");
       sending = false;
       startMillis = millis();
+      isSending = 0;
       }
     }
   }      
@@ -314,7 +341,7 @@ int[] spiral() {
 
 }
 
-// Radio button control
+// Radio button and checkbox control
 
 void controlEvent(ControlEvent theEvent) {
   if (theEvent.isFrom(radioButton)) {
@@ -329,9 +356,31 @@ void controlEvent(ControlEvent theEvent) {
       blobby();
     }
   }
+  
+    if (theEvent.isFrom(checkbox)) {
+    if (checkbox.getItem(0).getState() == true) {
+      println("Chord mode activated");
+      sendChords = true;
+      } 
+    if (checkbox.getItem(0).getState() == false) {
+      println("Chord mode deactivated");
+      sendChords = false;
+      MIDIPanic(); // ensure that all notes are off
+      } 
+ 
+  }
 }
  
 
+void MIDIPanic() {
 
+    // hacky "MIDI panic" command (sends a noteOff to all pitches in channel 1
+  for (int j=1; j<127; j++) 
+  {
+  myBus.sendNoteOff(1, j, 127); // Send a Midi nodeOff
+  println("sending MIDI panicOff to: "+j);
+  }
+
+}
 
   
