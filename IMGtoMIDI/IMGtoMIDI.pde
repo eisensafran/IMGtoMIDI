@@ -111,36 +111,22 @@ cp5 = new ControlP5(this);
 textSize(18);
 text("Important: Choose MIDI device first", 550, 30); 
 
-// Create a dropdown list
+
+
+
   dropdown = cp5.addScrollableList("dropdown")
      .setPosition(550, 40)
      .setSize(400, 300)
-     .setBarHeight(20)
-     .setItemHeight(20)
-     .addItems(midiDevices)
-     .setType(ScrollableList.DROPDOWN)
-     .setLabel("Select MIDI device")
-     .setOpen(false)                      //false for closed
-     ;
-     
-     
-  // Set a callback function to handle the dropdown list events
-  dropdown.addCallback(new CallbackListener() {
-    public void controlEvent(CallbackEvent theEvent) {
-              
-      if (theEvent.getAction() == ControlP5.ACTION_BROADCAST) {
-        int index = (int) theEvent.getController().getValue();
-        println(dropdown.getItem(index).get("name"));
-        String selectedMIDIDevice = dropdown.getItem(index).get("name").toString();
-        myBus = new MidiBus(this, 1, selectedMIDIDevice); 
-        println(selectedMIDIDevice);
-        updateTxtMsg("MIDI device selected");
+                .setBarHeight(20)
+                .setItemHeight(20)
+                .addItems(midiDevices)
+                .setOpen(false)
+                .setLabel("Select MIDI device")
+                ;
+                
 
-      }
-    }
-  });
-  
-  
+
+
 
                 
               
@@ -313,10 +299,6 @@ void draw() {
 
 void fileSelected(File selection) {
     img = loadImage(selection.getAbsolutePath());
-    
-
-    
-    
        
   }
 
@@ -510,6 +492,17 @@ void controlEvent(ControlEvent theEvent) {
       updateTxtMsg("Harmonic mode deactivated");
       MIDIPanic(); // ensure that all notes are off
       } 
+  }
+  
+    if (theEvent.isFrom(dropdown)) {
+    int selectedOption = int(theEvent.getValue());
+    println(selectedOption);
+    
+      int index = (int) theEvent.getController().getValue();
+        println(dropdown.getItem(index).get("name"));
+        String selectedMIDIDevice = dropdown.getItem(index).get("name").toString();
+        myBus = new MidiBus(this, 1, selectedMIDIDevice); 
+        
   }
   
 }
