@@ -1,21 +1,26 @@
 import controlP5.*;
 import themidibus.*;
 import blobDetection.*;
+import java.util.ArrayList;
 
 BlobDetection theBlobDetection;
 ControlP5 cp5;
 ScrollableList dropdown;
 MidiBus myBus;
 Slider delayValue;
+Slider minMIDI;
+Slider maxMIDI;
 Button startButton;
 Button stopButton;
 RadioButton radioButton;
 CheckBox checkbox;
+CheckBox checkbox2;
 
 PImage img;
 String[] midiDevices; // Array to store the MIDI devices
 color[] spiralColors; // Array to store all colors that were probed by spiral approach
-int[] allBlobs; // Array to store all blob coordinates
+float[] allBlobs; // Array to store all blob coordinates
+ArrayList<int[]> chords; // ArrayList to store all melodic chords
 
 boolean start = false; // Boolean flag to indicate start
 boolean sending = false; // Boolean flag to indicate sending a MIDI note
@@ -25,23 +30,31 @@ int startMillis;
 int amountOfBlobs;
 int currentPitch;
 int isSending = 0;
+int highestMIDInote = 80; // values for mapping function
+int lowestMIDInote = 25; // values for mapping function
 
 boolean spiral = false;
 boolean blobby = false;
 
 boolean sendChords = false; // Boolean flag if some basic chords are sent instead of single notes
+boolean enforceHarmonic = false; // Boolean flag if the color values should be mapped to harmonic chords only
 
+String txtMessage = "";
 
 
 void setup() {
   size(1000, 500);
-  background(150);
+  background(200);
   selectInput("Select an image file:", "fileSelected");
   
   // limit framerate
-  frameRate(30);
+  frameRate(25);
+
+  fill(0);
 
 
+  
+  updateTxtMsg("WARNING: no device selected");
   
   MidiBus.list();  
   startMillis = millis();
@@ -57,14 +70,51 @@ void setup() {
   midiDevices[i] = devices[i];
   }
   
+  
+// Initialize the chords ArrayList
+chords = new ArrayList<int[]>();
 
-   // Initialize ControlP5
-  cp5 = new ControlP5(this);
+// Add chords to the ArrayList
+chords.add(new int[] {60, 64, 67}); // C major (C, E, G)
+chords.add(new int[] {62, 65, 69}); // D minor (D, F, A)
+chords.add(new int[] {64, 67, 71}); // E minor (E, G, B)
+chords.add(new int[] {65, 69, 72}); // F major (F, A, C)
+chords.add(new int[] {67, 71, 74}); // G major (G, B, D)
+chords.add(new int[] {69, 72, 76}); // A minor (A, C, E)
+chords.add(new int[] {71, 74, 77}); // B diminished (B, D, F)
+chords.add(new int[] {60, 64, 67}); // Csus1 (C major)
+chords.add(new int[] {62, 69, 74}); // Dsus2
+chords.add(new int[] {65, 70, 74}); // Fsus2
+chords.add(new int[] {67, 72, 76}); // Gsus2
+chords.add(new int[] {69, 74, 78}); // Asus2
+chords.add(new int[] {60, 65, 67}); // Csus4
+chords.add(new int[] {62, 67, 74}); // Dsus4
+chords.add(new int[] {64, 69, 76}); // Esus4
+chords.add(new int[] {67, 72, 79}); // Gsus4
+chords.add(new int[] {69, 74, 81}); // Asus4
+chords.add(new int[] {60, 64, 67, 71}); // Cmaj7
+chords.add(new int[] {62, 65, 69, 74}); // Dm7
+chords.add(new int[] {64, 67, 71, 74}); // Em7
+chords.add(new int[] {65, 69, 72, 76}); // Fmaj7
+chords.add(new int[] {67, 71, 74, 77}); // G7
+chords.add(new int[] {69, 72, 76, 79}); // Am7
+  
+  
+// -------------------------------------------------
+// ----------------- INTERFACE ---------------------
+// -------------------------------------------------
 
-  // Create a dropdown list
+// Initialize ControlP5
+cp5 = new ControlP5(this);
+  
+// Hint for setup order    
+textSize(18);
+text("Important: Choose MIDI device first", 550, 30); 
+
+// Create a dropdown list
   dropdown = cp5.addScrollableList("dropdown")
-     .setPosition(550, 250)
-     .setSize(300, 300)
+     .setPosition(550, 40)
+     .setSize(400, 300)
      .setBarHeight(20)
      .setItemHeight(20)
      .addItems(midiDevices)
@@ -72,6 +122,8 @@ void setup() {
      .setLabel("Select MIDI device")
      .setOpen(false)                      //false for closed
      ;
+     
+     
   // Set a callback function to handle the dropdown list events
   dropdown.addCallback(new CallbackListener() {
     public void controlEvent(CallbackEvent theEvent) {
@@ -82,16 +134,112 @@ void setup() {
         String selectedMIDIDevice = dropdown.getItem(index).get("name").toString();
         myBus = new MidiBus(this, 1, selectedMIDIDevice); 
         println(selectedMIDIDevice);
+        updateTxtMsg("MIDI device selected");
 
       }
     }
   });
   
   
-   // Create a start button
+
+                
+              
+  text("Select algorithm", 550, 190); 
+                
+                
+       // create radio button
+       radioButton = cp5.addRadioButton("radioButton")
+                   .setPosition(550, 200)
+                   .setSize(20, 20)
+                   .setItemsPerRow(1)
+                   .setSpacingColumn(50)
+                   .addItem("Record Player", 0)
+                   .addItem("Blob Detection", 1)
+                   .setColorLabel(color(0));
+
+                
+                
+     stroke(255);
+     line(700, 175, 700, 240);
+                
+                
+            
+  text("Send single notes or chords?", 720, 190);             
+                
+  // Create a checkbox if chords should be generated
+    checkbox = cp5.addCheckBox("checkbox")
+                .setPosition(720, 200)
+                .setSize(20, 20)
+                .addItem("Send chords", 0)
+                .setColorLabel(color(0));          
+
+                
+  // Create a checkbox if harmonic should be enforced
+    checkbox2 = cp5.addCheckBox("checkbox2")
+              .setPosition(720, 221)
+              .setSize(20, 20)
+              .addItem("Enforce harmonics", 0)
+              .setColorLabel(color(0));
+     
+                
+    line(550, 260, 960, 260);          
+  
+   // Create a slider
+  delayValue = cp5.addSlider("delayValue")
+                .setPosition(550, 275)
+                .setSize(300, 25)
+                .setRange(100, 3000)
+                .setValue(500)
+                .setSliderMode(Slider.FLEXIBLE)
+                .setLabel("Delay between notes")
+                .setColorLabel(color(0))
+                .onChange(new CallbackListener() {
+                  public void controlEvent(CallbackEvent theEvent) {
+                    float value = theEvent.getController().getValue();
+                    delayV = (int)value;
+                  }
+                });
+                
+ 
+    // Create a slider
+  minMIDI = cp5.addSlider("minMIDI")
+                .setPosition(550, 305)
+                .setSize(300, 25)
+                .setRange(0, 50)
+                .setValue(25)
+                .setSliderMode(Slider.FLEXIBLE)
+                .setLabel("Limit lowest note")
+                .setColorLabel(color(0))
+                .onChange(new CallbackListener() {
+                  public void controlEvent(CallbackEvent theEvent) {
+                    float value = theEvent.getController().getValue();
+                    lowestMIDInote = (int)value;
+                  }
+                });
+                
+                    // Create a slider
+  maxMIDI = cp5.addSlider("maxMIDI")
+                .setPosition(550, 335)
+                .setSize(300, 25)
+                .setRange(60, 127)
+                .setValue(80)
+                .setSliderMode(Slider.FLEXIBLE)
+                .setLabel("Limit highest note")
+                .setColorLabel(color(0))
+                .onChange(new CallbackListener() {
+                  public void controlEvent(CallbackEvent theEvent) {
+                    float value = theEvent.getController().getValue();
+                    highestMIDInote = (int)value;
+                  }
+                });
+     
+
+line(550, 380, 960, 380);
+
+                 // Create a start button
   startButton = cp5.addButton("startButton")
                 .setLabel("START")
-                .setPosition(550, 50)
+                .setPosition(550, 400)
                 .setSize(100, 50)
                 .onClick(new CallbackListener() {
                   public void controlEvent(CallbackEvent theEvent) {
@@ -99,7 +247,7 @@ void setup() {
 
                     
                     start = true; // Set the flag to true when button is pressed
-                    
+                    updateTxtMsg("MIDI started");
                   }
                 });
                 
@@ -107,68 +255,20 @@ void setup() {
   // Create a stop button
   stopButton = cp5.addButton("stopButton")
                 .setLabel("STOP")
-                .setPosition(750, 50)
+                .setPosition(670, 400)
                 .setSize(100, 50)
                 .onClick(new CallbackListener() {
                   public void controlEvent(CallbackEvent theEvent) {
                     start = false; // Set the flag to true when button is pressed
                     println("stopped");
+                    updateTxtMsg("MIDI stopped");
                     
                     MIDIPanic();
                     
                     
                   }
                 });
-                
-                textSize(18);
-                
-                
-                  // Hint for setup order              
-  text("Select algorithm", 550, 410); 
-                
-                
-       // create radio button
-       radioButton = cp5.addRadioButton("radioButton")
-                   .setPosition(550, 420)
-                   .setSize(20, 20)
-                   .setItemsPerRow(1)
-                   .setSpacingColumn(50)
-                   .addItem("Record Player", 0)
-                   .addItem("Blob Detection", 1);
-     
-                
-                
-  // Hint for setup order              
-  text("Important: Choose MIDI device first", 550, 240); 
-  
-  
-   // Create a slider
-  delayValue = cp5.addSlider("delayValue")
-                .setPosition(550, 150)
-                .setSize(300, 50)
-                .setRange(100, 3000)
-                .setValue(500)
-                .setSliderMode(Slider.FLEXIBLE)
-                .setLabel("Delay between notes")
-                .onChange(new CallbackListener() {
-                  public void controlEvent(CallbackEvent theEvent) {
-                    float value = theEvent.getController().getValue();
-                    delayV = (int)value;
-                  }
-                });
-     
-     stroke(255);
-     line(700, 395, 700, 465);
-                
-                
-      // Hint for setup order              
-  text("Send single notes or chords?", 720, 410);             
-                
-  // Create a checkbox if chords should be generated
-    checkbox = cp5.addCheckBox("checkbox")
-                .setPosition(720, 420)
-                .setSize(20, 20)
-                .addItem("Send chords", 0);
+              
               
 }
   
@@ -181,30 +281,33 @@ void draw() {
     }
     
 
+    
+
   if (start) {
     
+
       
     // color centerColor = int(red(get(img.width/2, img.height/2)));    
     // sendMIDI(centerColor);
     
     
-    //todo: blobby needs to be rewritten!
+
     if (blobby) {
     // int mod = (int)random(allBlobs.length); // alternative to modulo
     int mod = frameCount % allBlobs.length;
-    //println("amount of detected blobs: "+blobby().length);
-    //println("modulo: "+mod);
-    sendMIDI(allBlobs[mod]);
+
+    sendMIDI(int(map(allBlobs[mod], 0, 1, lowestMIDInote, highestMIDInote)));
     }
     
     if (spiral) {
     int mod2 = frameCount % spiralColors.length;
-    sendMIDI(int(map(red(spiralColors[mod2]), 0, 255, 30, 80)));
+    sendMIDI(int(map(red(spiralColors[mod2]), 0, 255, lowestMIDInote, highestMIDInote)));
     }
 
     // println("Frame: "+frameCount);
     
     }
+    
 
 }
 
@@ -225,11 +328,22 @@ void sendMIDI(int pitch) {
     
   if (sending == false) {
     
-  myBus.sendNoteOn(channel, pitch, velocity); // Send a Midi noteOn
+  
   if (sendChords) {
     myBus.sendNoteOn(channel, pitch+4, velocity); // Send a Midi noteOn
     myBus.sendNoteOn(channel, pitch+7, velocity); // Send a Midi noteOn
   }
+  
+  if (enforceHarmonic) {
+      int[] chord = chords.get((int)map(pitch, lowestMIDInote, highestMIDInote, 0, chords.size()));
+      // Play the chord
+      for (int note : chord) {
+        myBus.sendNoteOn(channel, note, velocity);
+        }
+  } else {
+    myBus.sendNoteOn(channel, pitch, velocity); // Send a Midi noteOn
+  }
+  
   println("sending MIDI noteON:  "+pitch);
   println();
 
@@ -246,10 +360,19 @@ void sendMIDI(int pitch) {
     
     // ensure that the MIDI noteOff command is sent only once
     if (isSending < 1) {
-      myBus.sendNoteOff(channel, currentPitch, velocity); // Send a Midi noteOff
+      
       if (sendChords) {
         myBus.sendNoteOff(channel, pitch+4, velocity); // Send a Midi noteOff
         myBus.sendNoteOff(channel, pitch+7, velocity); // Send a Midi noteOff
+        }
+      if (enforceHarmonic) {
+       int[] chord = chords.get((int)map(pitch, lowestMIDInote, highestMIDInote, 0, (chords.size()-1)));
+        // Play the chord
+        for (int note : chord) {
+        myBus.sendNoteOff(channel, note, velocity);
+        }
+      } else {
+        myBus.sendNoteOff(channel, currentPitch, velocity); // Send a Midi noteOff
       }
       isSending ++;
       println("sending MIDI noteOff: "+currentPitch);
@@ -269,32 +392,30 @@ void sendMIDI(int pitch) {
 
 // Function to probe the image via blob detection
  
-int[] blobby() {
+float[] blobby() {
   
   theBlobDetection = new BlobDetection(img.width, img.height);
   theBlobDetection.setPosDiscrimination(false);
-  theBlobDetection.setThreshold(0.8f);
+  theBlobDetection.setThreshold(0.7f);
   theBlobDetection.computeBlobs(img.pixels);
-  // println(theBlobDetection.getBlobNb()); // amount of blobs
-  // println(theBlobDetection.getBlob(1).getEdgeVertexB(1));
-  // println(theBlobDetection.getBlob(1).getEdgeNb());
-  // println(theBlobDetection.getBlob(1).x); // between 0 and 1
-  // println(theBlobDetection.getBlob(1).y); // between 0 and 1
   
   // initilialize an array with the length of the amount of all blobs
-  int[] allBlobs = new int[theBlobDetection.getBlobNb()];
+  allBlobs = new float[theBlobDetection.getBlobNb()];
+
   
   // write the x coordinates of all blobs into array
   // and map them to MIDI command values in int
   for (int m = 0; m < allBlobs.length; m++) {
    
-    allBlobs[m] = int(map(theBlobDetection.getBlob(m).x, 0, 1, 30, 80));
+    allBlobs[m] = theBlobDetection.getBlob(m).x;
    
     
   }
 
-  println(allBlobs);
-  return allBlobs;
+  updateTxtMsg("Detected blobs: "+str(allBlobs.length));
+
+ return(allBlobs);
+
 }
 
 
@@ -335,7 +456,7 @@ int[] spiral() {
     radius += radiusIncrement; // Increment the radius
   }
   
-
+  println(spiralColors);
   return spiralColors;
 
 
@@ -358,30 +479,69 @@ void controlEvent(ControlEvent theEvent) {
     }
   }
   
-    if (theEvent.isFrom(checkbox)) {
+  if (theEvent.isFrom(checkbox)) {
     if (checkbox.getItem(0).getState() == true) {
       println("Chord mode activated");
       sendChords = true;
+      updateTxtMsg("Chord mode activated");
       } 
     if (checkbox.getItem(0).getState() == false) {
       println("Chord mode deactivated");
       sendChords = false;
       MIDIPanic(); // ensure that all notes are off
+      updateTxtMsg("Chord mode deactivated");
       } 
- 
+    }
+
+  if (theEvent.isFrom(checkbox2)) {
+    if (checkbox2.getItem(0).getState() == true) {
+      println("Harmonic mode activated");
+      
+      // attempt to enforce that the external synthesizer is set to polyphonic mode
+      // (does not work with Arturia Microfreak at the moment, therefore commented out)
+      // myBus.sendControllerChange(1, 127, 0);
+      
+      enforceHarmonic = true;
+      updateTxtMsg("Harmonic mode activated");
+      } 
+    if (checkbox2.getItem(0).getState() == false) {
+      println("Harmonic mode deactivated");
+      enforceHarmonic = false;
+      updateTxtMsg("Harmonic mode deactivated");
+      MIDIPanic(); // ensure that all notes are off
+      } 
   }
+  
 }
  
 
 void MIDIPanic() {
+  
+  // "correct" MIDI panic signal 
+  // sometimes still produces some mistakes
+  myBus.sendControllerChange(1, 120, 0);
+  updateTxtMsg("ALL NOTES OFF");
+  
+  // hacky "MIDI panic" command (sends a noteOff to all pitches in channel 1)
+  // to REALLY enforce that there are no "hanging" MIDI notes in the synthesizer
+  for (int j=1; j<127; j++) {
+    myBus.sendNoteOff(1, j, 127); // Send a Midi nodeOff
+    println("sending MIDI panicOff to: "+j);
+    }
+  
 
-    // hacky "MIDI panic" command (sends a noteOff to all pitches in channel 1
-  for (int j=1; j<127; j++) 
-  {
-  myBus.sendNoteOff(1, j, 127); // Send a Midi nodeOff
-  println("sending MIDI panicOff to: "+j);
-  }
 
 }
 
+void updateTxtMsg(String msg) {
+
+    // Display the text feedback
+    fill(200);
+    rect(790, 401, 170, 47);
+    textSize(12);
+    fill (0);
+    text(msg, 800, 420); 
+
+
+}
   
