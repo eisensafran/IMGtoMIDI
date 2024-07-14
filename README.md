@@ -2,6 +2,8 @@
 
 Objective: Converting a static image to MIDI signals using blob detection and a probing method akin to a phonograph. Autodetecting suitable MIDI interfaces/devices on the target system and providing a simple GUI. More info [here](https://andi-siess.de/image-to-music/). 
 
+![screenshot of GUI](img/IMGtoMIDI-GUIscreenshot-2.jpg)
+
 ## current status
 Prototype is working but a lot of features are highly work in progress. 
 

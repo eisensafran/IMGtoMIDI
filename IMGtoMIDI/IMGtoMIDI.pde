@@ -49,6 +49,8 @@ void setup() {
   
   // limit framerate
   frameRate(25);
+  
+
 
   fill(0);
 
@@ -501,7 +503,8 @@ void controlEvent(ControlEvent theEvent) {
       int index = (int) theEvent.getController().getValue();
         println(dropdown.getItem(index).get("name"));
         String selectedMIDIDevice = dropdown.getItem(index).get("name").toString();
-        myBus = new MidiBus(this, 1, selectedMIDIDevice); 
+        myBus = new MidiBus(this, 1, selectedMIDIDevice);
+        updateTxtMsg("MIDI device selected");
         
   }
   
