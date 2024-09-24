@@ -24,6 +24,7 @@ Prototype is working but a lot of features are highly work in progress.
 - [x] Include text field in GUI with current status (or at least all console logs)
 - [x] Better way to sending MIDI panic message (`CC 120` or `CC 123`) than the for loop that is currently in place
 - [x] Include option to include accords
+- [x] Implement button in GUI to load image
 - [ ] Blob detection threshold should be configurable via the GUI
 - [ ] The MIDI devices dropdown list can't be closed at the moment which leads to a confusing UI when the device is changed after the initial selection.
  

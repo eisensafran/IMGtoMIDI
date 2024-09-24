@@ -357,6 +357,7 @@ void sendMIDI(int pitch) {
         }
   } else {
     myBus.sendNoteOn(channel, pitch, velocity); // Send a Midi noteOn
+    updateTxtMsg("Sending root note: "+str(pitch));
   }
   
   println("sending MIDI noteON:  "+pitch);
@@ -459,7 +460,7 @@ int[] spiral() {
       
       // Ensure the coordinates are within a circle with radius = img.width/2
       // in order to prevent detecting coordinates in the corners
-      // (will be black or white in WLM)
+      // (will be black or white or transparent in WLM)
       if ((pow(imgX - img.width/2, 2) + pow(imgY - img.height/2, 2)) < pow((img.width/2), 2)) {
         
         spiralColors[i] = img.get(imgX, imgY); // Get the color from the image
