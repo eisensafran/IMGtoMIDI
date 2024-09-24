@@ -21,6 +21,7 @@ String[] midiDevices; // Array to store the MIDI devices
 color[] spiralColors; // Array to store all colors that were probed by spiral approach
 float[] allBlobs; // Array to store all blob coordinates
 ArrayList<int[]> chords; // ArrayList to store all melodic chords
+String selectedMIDIDevice;
 
 boolean start = false; // Boolean flag to indicate start
 boolean sending = false; // Boolean flag to indicate sending a MIDI note
@@ -43,9 +44,9 @@ String txtMessage = "";
 
 
 void setup() {
-  size(1000, 500);
+  size(1500, 500);
   background(200);
-  selectInput("Select an image file:", "fileSelected");
+  
   
   // limit framerate
   frameRate(25);
@@ -127,17 +128,38 @@ text("Important: Choose MIDI device first", 550, 30);
                 ;
                 
 
+  text("Select image", 550+450, 30); 
+  
+                   // Create a load image button
+  startButton = cp5.addButton("loadImage")
+                .setLabel("LOAD IMAGE")
+                .setPosition(550+450, 40)
+                .setSize(100, 50)
+                .onClick(new CallbackListener() {
+                  public void controlEvent(CallbackEvent theEvent) {
+                    
+                    
+                    start = false;
+                    
+                      selectInput("Select an image file:", "fileSelected");
+
+                    
+                  
+                    updateTxtMsg("Image loaded");
+                  }
+                });
 
 
-
+     stroke(255);
+  line(550+450, 100, 960+450, 100);
                 
               
-  text("Select algorithm", 550, 190); 
+  text("Select algorithm", 550+450, 190-50); 
                 
                 
        // create radio button
        radioButton = cp5.addRadioButton("radioButton")
-                   .setPosition(550, 200)
+                   .setPosition(550+450, 200-50)
                    .setSize(20, 20)
                    .setItemsPerRow(1)
                    .setSpacingColumn(50)
@@ -147,16 +169,16 @@ text("Important: Choose MIDI device first", 550, 30);
 
                 
                 
-     stroke(255);
-     line(700, 175, 700, 240);
+   
+     line(700+450, 175-50, 700+450, 240-50);
                 
                 
             
-  text("Send single notes or chords?", 720, 190);             
+  text("Send single notes or chords?", 720+450, 190-50);             
                 
   // Create a checkbox if chords should be generated
     checkbox = cp5.addCheckBox("checkbox")
-                .setPosition(720, 200)
+                .setPosition(720+450, 200-50)
                 .setSize(20, 20)
                 .addItem("Send chords", 0)
                 .setColorLabel(color(0));          
@@ -164,17 +186,17 @@ text("Important: Choose MIDI device first", 550, 30);
                 
   // Create a checkbox if harmonic should be enforced
     checkbox2 = cp5.addCheckBox("checkbox2")
-              .setPosition(720, 221)
+              .setPosition(720+450, 221-50)
               .setSize(20, 20)
               .addItem("Enforce harmonics", 0)
               .setColorLabel(color(0));
      
                 
-    line(550, 260, 960, 260);          
+    line(550+450, 260-50, 960+450, 260-50);          
   
    // Create a slider
   delayValue = cp5.addSlider("delayValue")
-                .setPosition(550, 275)
+                .setPosition(550+450, 275-50)
                 .setSize(300, 25)
                 .setRange(100, 3000)
                 .setValue(500)
@@ -191,7 +213,7 @@ text("Important: Choose MIDI device first", 550, 30);
  
     // Create a slider
   minMIDI = cp5.addSlider("minMIDI")
-                .setPosition(550, 305)
+                .setPosition(550+450, 305-50)
                 .setSize(300, 25)
                 .setRange(0, 50)
                 .setValue(25)
@@ -207,7 +229,7 @@ text("Important: Choose MIDI device first", 550, 30);
                 
                     // Create a slider
   maxMIDI = cp5.addSlider("maxMIDI")
-                .setPosition(550, 335)
+                .setPosition(550+450, 335-50)
                 .setSize(300, 25)
                 .setRange(60, 127)
                 .setValue(80)
@@ -222,20 +244,29 @@ text("Important: Choose MIDI device first", 550, 30);
                 });
      
 
-line(550, 380, 960, 380);
+line(550+450, 380-50, 960+450, 380-50);
 
                  // Create a start button
   startButton = cp5.addButton("startButton")
                 .setLabel("START")
-                .setPosition(550, 400)
+                .setPosition(550+450, 400)
                 .setSize(100, 50)
                 .onClick(new CallbackListener() {
                   public void controlEvent(CallbackEvent theEvent) {
                     
-
                     
-                    start = true; // Set the flag to true when button is pressed
-                    updateTxtMsg("MIDI started");
+                    if (img != null){
+                    
+                      // check if a device was selected
+                      if (selectedMIDIDevice != null) {
+                        start = true; // Set the flag to true when button is pressed
+                        updateTxtMsg("MIDI started");
+                       } else {
+                        updateTxtMsg("ERROR: no MIDI device");
+                        }
+                    } else {
+                      updateTxtMsg("ERROR: no image selected");
+                    }
                   }
                 });
                 
@@ -243,7 +274,7 @@ line(550, 380, 960, 380);
   // Create a stop button
   stopButton = cp5.addButton("stopButton")
                 .setLabel("STOP")
-                .setPosition(670, 400)
+                .setPosition(670+450, 400)
                 .setSize(100, 50)
                 .onClick(new CallbackListener() {
                   public void controlEvent(CallbackEvent theEvent) {
@@ -502,7 +533,7 @@ void controlEvent(ControlEvent theEvent) {
     
       int index = (int) theEvent.getController().getValue();
         println(dropdown.getItem(index).get("name"));
-        String selectedMIDIDevice = dropdown.getItem(index).get("name").toString();
+        selectedMIDIDevice = dropdown.getItem(index).get("name").toString();
         myBus = new MidiBus(this, 1, selectedMIDIDevice);
         updateTxtMsg("MIDI device selected");
         
@@ -513,6 +544,10 @@ void controlEvent(ControlEvent theEvent) {
 
 void MIDIPanic() {
   
+  // check if start button was pressed before sending MIDI panic to avoid null pointer exception
+  // when STOP is pressed before any MIDI devices were chosen
+  if (start) {
+    
   // "correct" MIDI panic signal 
   // sometimes still produces some mistakes
   myBus.sendControllerChange(1, 120, 0);
@@ -524,7 +559,7 @@ void MIDIPanic() {
     myBus.sendNoteOff(1, j, 127); // Send a Midi nodeOff
     println("sending MIDI panicOff to: "+j);
     }
-  
+  }
 
 
 }
@@ -533,10 +568,10 @@ void updateTxtMsg(String msg) {
 
     // Display the text feedback
     fill(200);
-    rect(790, 401, 170, 47);
+    rect(790+450, 401, 170, 47);
     textSize(12);
     fill (0);
-    text(msg, 800, 420); 
+    text(msg, 800+450, 420); 
 
 
 }
