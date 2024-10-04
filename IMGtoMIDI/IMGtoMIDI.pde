@@ -33,6 +33,7 @@ int currentPitch;
 int isSending = 0;
 int highestMIDInote = 80; // values for mapping function
 int lowestMIDInote = 25; // values for mapping function
+int midiChannel = 1; // selected MIDI channel, defaults to 1
 
 boolean spiral = false;
 boolean blobby = false;
@@ -244,7 +245,30 @@ text("Important: Choose MIDI device first", 550, 30);
                 });
      
 
-line(550+450, 380-50, 960+450, 380-50);
+line(550+450, 380-55, 960+450, 380-55);
+
+  // Create a text field for MIDI channel input
+  cp5.addTextfield("MIDI channel")
+     .setPosition(550+450, 340)
+     .setSize(60, 30)
+     .setAutoClear(false)
+     .setColorLabel(color(0))
+     .setColorBackground(color(230))  // Set light grey color
+     .setColor(color(0))  // Set text color to black
+     ;
+     
+       // Create a button to confirm MIDI channel input
+  cp5.addButton("submitMIDI")
+     .setLabel("Submit")
+     .setPosition(1075, 340)
+     .setSize(60, 30);
+     
+     
+     
+
+     
+line(550+450, 390, 960+450, 390);
+
 
                  // Create a start button
   startButton = cp5.addButton("startButton")
@@ -336,8 +360,11 @@ void fileSelected(File selection) {
   }
 
 void sendMIDI(int pitch) {
+  
+  // check if MIDI Bus was successfully selected
+  if (myBus != null) {
          
-  int channel = 1;
+  int channel = midiChannel;
   int velocity = 127;
 
     
@@ -357,7 +384,7 @@ void sendMIDI(int pitch) {
         }
   } else {
     myBus.sendNoteOn(channel, pitch, velocity); // Send a Midi noteOn
-    updateTxtMsg("Sending root note: "+str(pitch));
+    updateTxtMsg("Sending root note: " + str(pitch));
   }
   
   println("sending MIDI noteON:  "+pitch);
@@ -403,7 +430,8 @@ void sendMIDI(int pitch) {
       isSending = 0;
       }
     }
-  }      
+  } 
+ }
 }  
 
 // Function to probe the image via blob detection
@@ -440,7 +468,7 @@ float[] blobby() {
 
 int[] spiral() {
 
-  translate(img.width / 2, img.height / 2); // Move the origin to the center of the image
+  //translate(img.width / 2, img.height / 2); // Move the origin to the center of the image
   float angle = 0;
   float radius = 0;
   float angleIncrement = 0.1;
@@ -472,12 +500,17 @@ int[] spiral() {
     radius += radiusIncrement; // Increment the radius
   }
   
+  updateTxtMsg("Phono probing successful");
   println(spiralColors);
   return spiralColors;
 
 
 
 }
+
+
+
+
 
 // Radio button and checkbox control
 
@@ -494,6 +527,8 @@ void controlEvent(ControlEvent theEvent) {
       blobby();
     }
   }
+  
+
   
   if (theEvent.isFrom(checkbox)) {
     if (checkbox.getItem(0).getState() == true) {
@@ -538,6 +573,22 @@ void controlEvent(ControlEvent theEvent) {
         myBus = new MidiBus(this, 1, selectedMIDIDevice);
         updateTxtMsg("MIDI device selected");
         
+  }
+  
+  
+  if (theEvent.getName().equals("submitMIDI")) {
+    String input = cp5.get(Textfield.class, "MIDI channel").getText();
+    
+    // Validate if the input is a number & if the number is between 0 and 11
+    if (input.matches("\\d+") && int(input) <= 16 && int(input) > 0) {  
+      midiChannel = Integer.parseInt(input);
+        println("MIDI channel set to: " + midiChannel);
+        updateTxtMsg("MIDI channel set to: " + midiChannel);
+    } else {
+        // Clear the field if input is not a number
+        cp5.get(Textfield.class, "MIDI channel").setText("");
+        updateTxtMsg("Invalid MIDI channel");
+    }
   }
   
 }
